@@ -869,7 +869,8 @@ def bundle_body(b):
         ('Applications', ['$known = @(%s)' % ', '.join(q(k) for k in known), '$apps = @()'] + app_lines(b)),
     ]
     text = ''.join('# ==== Part %d of %d: %s\n%s\n' % (i, len(parts) + 1, title, '\n'.join(lines)) for i, (title, lines) in enumerate(parts, 1))
-    return text + '# ==== Part %d of %d: the RADE engine (engine/ps, in run order)' % (len(parts) + 1, len(parts) + 1) + engine_for_app(include_sp=sp_enabled_for_bundle(b))
+    end_head = '# ==== Part %d of %d: the RADE engine (engine/ps, in run order)' % (len(parts) + 1, len(parts) + 1)
+    return text + end_head + engine_for_app(include_sp=sp_enabled_for_bundle(b))
 
 
 def contents(head, body):
