@@ -137,6 +137,27 @@ own_tree() {  # own_tree: prints the top folder when it is this repo's own work 
   return 0
 }
 
+# is_ag_public_ci TOP REMOTE: 0 when in an Antigravity VM (/opt/antigravity), TOP has .github/workflows/check.yml
+# running check_content.py, and REMOTE is a confirmed public GitHub repo (isPrivate == false). Fails closed (1) otherwise.
+is_ag_public_ci() {
+  local top="${1:-}" remote="${2:-origin}" url slug priv gh_at="git@""github.com"
+  [ -d "${AG_VM_MARKER:-/opt/antigravity}" ] || return 1
+  [ -f "$top/.github/workflows/check.yml" ] || return 1
+  grep -Fq "check_content.py" "$top/.github/workflows/check.yml" 2>/dev/null || return 1
+  url=$(git -C "$top" remote get-url "$remote" 2>/dev/null || printf '%s' "$remote")
+  case "$url" in
+    https://github.com/*/*) slug=${url#https://github.com/} ;;
+    "${gh_at}:"*/*) slug=${url#"${gh_at}:"} ;;
+    "ssh://${gh_at}/"*/*) slug=${url#"ssh://${gh_at}/"} ;;
+    *) return 1 ;;
+  esac
+  slug=${slug%/}
+  slug=${slug%.git}
+  command -v gh >/dev/null 2>&1 || return 1
+  priv=$(gh repo view "$slug" --json isPrivate --jq .isPrivate 2>/dev/null) || return 1
+  [ "$priv" = "false" ]
+}
+
 if [ "${1:-}" = "--test" ]; then
   set -e
   # The host's git config (forced signing, init.defaultBranch, "git -c ..." on the push) must not change the cases.
@@ -273,6 +294,27 @@ refs/heads/y $c refs/heads/y $zero"
   eq "--git-dir with --work-tree of this repo: the top folder" "$(cd "$o" && GIT_DIR="$t/.git" GIT_WORK_TREE="$t" own_tree)" "$(pwd -P)"
   git worktree add -q -b wtb "$o/wt" "$a"
   eq "a linked worktree: its own top folder" "$(cd "$o/wt" && GIT_DIR="$t/.git/worktrees/wt" own_tree)" "$(cd "$o/wt" && pwd -P)"
+  # AG VM public repo check: fail closed unless AG marker, check.yml, and public GitHub repo are all confirmed
+  mkdir -p "$o/ag" "$o/bin" "$o/repo/.github/workflows"
+  printf 'python3 scripts/check_content.py --require-denylist\n' > "$o/repo/.github/workflows/check.yml"
+  git -C "$o/repo" init -q -b main && git -C "$o/repo" remote add origin "https://github.com/example/pub.git"
+  cat > "$o/bin/gh" <<'GH'
+#!/usr/bin/env bash
+case "${MOCK_GH:-false}" in
+  fail) exit 1 ;;
+  *) printf '%s\n' "${MOCK_GH:-false}" ;;
+esac
+GH
+  chmod +x "$o/bin/gh"
+  eq "ag_public_ci: non-AG environment fails closed" "$(AG_VM_MARKER="$o/no-ag" is_ag_public_ci "$o/repo" origin; echo $?)" 1
+  eq "ag_public_ci: missing check.yml fails closed" "$(AG_VM_MARKER="$o/ag" is_ag_public_ci "$o" origin; echo $?)" 1
+  eq "ag_public_ci: private repo fails closed" "$(PATH="$o/bin:$PATH" AG_VM_MARKER="$o/ag" MOCK_GH=true is_ag_public_ci "$o/repo" origin; echo $?)" 1
+  eq "ag_public_ci: gh error fails closed" "$(PATH="$o/bin:$PATH" AG_VM_MARKER="$o/ag" MOCK_GH=fail is_ag_public_ci "$o/repo" origin; echo $?)" 1
+  eq "ag_public_ci: public repo with check.yml in AG VM passes" "$(PATH="$o/bin:$PATH" AG_VM_MARKER="$o/ag" MOCK_GH=false is_ag_public_ci "$o/repo" origin; echo $?)" 0
+  eq "ag_public_ci: SSH GitHub URL passes" "$(PATH="$o/bin:$PATH" AG_VM_MARKER="$o/ag" MOCK_GH=false is_ag_public_ci "$o/repo" "git@""github.com:example/pub.git/"; echo $?)" 0
+  eq "ag_public_ci: non-GitHub URL fails closed" "$(PATH="$o/bin:$PATH" AG_VM_MARKER="$o/ag" MOCK_GH=false is_ag_public_ci "$o/repo" "https://example.invalid/o/r.git"; echo $?)" 1
+  printf 'echo hi\n' > "$o/repo/.github/workflows/check.yml"
+  eq "ag_public_ci: check.yml without check_content.py fails closed" "$(PATH="$o/bin:$PATH" AG_VM_MARKER="$o/ag" MOCK_GH=false is_ag_public_ci "$o/repo" origin; echo $?)" 1
   rm -rf "$o"
   [ $fails = 0 ] && echo "PRE-PUSH TEST PASS" || { echo "PRE-PUSH TEST FAIL"; exit 1; }
   exit 0
@@ -326,11 +368,20 @@ if [ -f "$top/.check" ] || [ -f "$top/.pii-guard" ]; then
   if [ -z "$guard" ]; then
     echo "pre-push: blocked: .check is on but check_content.py was not found (scripts/ or tools/)." >&2; exit 1
   fi
-  gargs=(--push --require-denylist)
+  gargs=(--push)
+  ag_public=0
+  if is_ag_public_ci "$top" "${1:-origin}"; then
+    ag_public=1
+  else
+    gargs+=(--require-denylist)
+  fi
   [ "$carries" = 1 ] && [ "$logs" = 0 ] && gargs=(--all "${gargs[@]}")  # one run: every tracked file, and the pushed commits
   g0=$(date +%s%N 2>/dev/null)
   pout=$(printf '%s\n' "$input" | python3 "$guard" "${gargs[@]}" 2>&1); rc=$?
   [ -n "$pout" ] && printf '%s\n' "$pout" >&2
+  if [ "$rc" -eq 0 ] && [ "$ag_public" = 1 ] && [ "$carries" = 1 ] && printf '%s' "$pout" | grep -q "names NOT checked (no denylist)"; then
+    echo "WARN  pre-push: no local denylist in AG VM; names not checked locally (GitHub Actions check.yml checks names on PR)." >&2
+  fi
   # Compare the guard's time with its baseline (warn only; .claude/skills/audit/SKILL.md "A slow run"). Needs date +%N (GNU).
   case "$g0" in *N|'') ;; *) [ -f "$top/scripts/bloat_check.py" ] && [ "$carries" = 1 ] && python3 "$top/scripts/bloat_check.py" \
     --project "$top" --compare "push-guard=$(awk -v a="$g0" -v b="$(date +%s%N)" 'BEGIN {printf "%.1f", (b - a) / 1e9}')" 2>&1 | tail -n 1 >&2 ;; esac
