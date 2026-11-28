@@ -4,6 +4,6 @@
   "page": "https://github.com/rhope-ops/RADE",
   "help": "RHOPE-OPS",
   "apps": [
-    {"repo": "rhope-ops/90-161.Z", "manifest": "scripts/paste_bundles.json", "ui": "v1"}
+    {"repo": "rhope-ops/kanon", "manifest": "scripts/paste_bundles.json", "ui": "v1"}
   ]
 }

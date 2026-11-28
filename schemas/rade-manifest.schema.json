@@ -36,7 +36,6 @@
       "type": "object",
       "required": [
         "out",
-        "round",
         "title",
         "files",
         "steps"
@@ -113,6 +112,9 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
           "description": "A git tag of the app repo (for example v1.0.0). Fetch files with src then download from that tag, a fixed address, and are still checked by SHA-256; without it they come from main. Tag the commit that holds the bundle and its files."
+        },
+        "capabilities": {
+          "$ref": "#/$defs/capabilities"
         }
       }
     },
@@ -674,6 +676,9 @@
           "default": "test",
           "description": "deploy: install an app; the run sends nothing (no e-mail draft) and updates the app's record file in RADE\\Config\\installed (docs/engine.md \"Shared files\"). test: a test round (the default; Administrator only). drift: the Administrator-only drift check (docs/drift-check.md)."
         },
+        "capabilities": {
+          "$ref": "#/$defs/capabilities"
+        },
         "marker": {
           "type": "object",
           "required": [
@@ -884,27 +889,7 @@
           "description": "[folder, glob] pairs in the app repo: support files with fixed names that clean-up may also recycle."
         },
         "capabilities": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "sharepoint": {
-              "oneOf": [
-                { "type": "boolean" },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "enabled": { "type": "boolean" },
-                    "sitePrefix": { "type": "string" },
-                    "niprLabel": { "type": "string" }
-                  }
-                }
-              ]
-            },
-            "round": { "type": "boolean" },
-            "aumidPrefix": { "type": "string" }
-          },
-          "description": "Optional capability declarations (e.g. sharepoint, round, aumidPrefix)."
+          "$ref": "#/$defs/capabilities"
         },
         "helpRules": {
           "type": "array",
@@ -921,6 +906,29 @@
           "description": "Optional app-specific What-to-do help rules."
         }
       }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sharepoint": {
+          "oneOf": [
+            { "type": "boolean" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "sitePrefix": { "type": "string" },
+                "niprLabel": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "round": { "type": "boolean" },
+        "aumidPrefix": { "type": "string" }
+      },
+      "description": "Optional capability declarations (e.g. sharepoint, round, aumidPrefix)."
     }
   }
 }

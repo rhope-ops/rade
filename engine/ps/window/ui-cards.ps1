@@ -167,8 +167,8 @@ $ui.ErrBox.Margin = (& $ui.Pad 4 4 4 4); $ui.ErrBox.BorderStyle = 'FixedSingle'
 $ui.ErrBox.Font = $ui.F.Small; $ui.ErrBox.ForeColor = $ui.C.Ink; $ui.ErrBox.BackColor = $ui.C.White; $ui.ErrBox.AccessibleName = 'Error message'; & $ui.Cue $ui.ErrBox
 [void]$ui.ErrRow.Controls.Add($ui.ErrBox)
 $ui.LinkRow = & $ui.Flow 0; $ui.LinkRow.WrapContents = $true; $ui.LinkRow.Margin = (& $ui.Pad (-$ui.Z.M) 0 0 0); & $ui.Ring $ui.LinkRow
-$ui.CopyPathB = & $ui.LinkBtn 'Copy file path'; $ui.ShowFileB = & $ui.LinkBtn 'Show file in folder'; $ui.PageB = & $ui.LinkBtn 'Open the RADE page'
-$ui.PageB.AccessibleName = 'Open the RADE page in your browser'; $ui.PageB.Visible = $false
+$ui.CopyPathB = & $ui.LinkBtn 'Copy file path'; $ui.ShowFileB = & $ui.LinkBtn 'Show file in folder'; $ui.PageB = & $ui.LinkBtn 'Open repository page'
+$ui.PageB.AccessibleName = 'Open the repository page in your browser'; $ui.PageB.Visible = $false
 foreach ($c in @($ui.CopyPathB, $ui.ShowFileB, $ui.PageB)) { [void]$ui.LinkRow.Controls.Add($c) }
 $ui.Note = & $ui.Text $ui.F.Small $ui.C.Gray $ui.Z.G2 'Note'
 $ui.Help = & $ui.Text $ui.F.Body $ui.C.Navy $ui.Z.G4 'Help'
@@ -581,7 +581,7 @@ $ui.OpenUrl = {
 $ui.CopyPathB.Add_Click({
   $msg = $(if (Copy-TextToClipboard ([string]$ui.G.File)) { 'File path copied. Press Ctrl+V in the "File name" box' } else { 'The clipboard is busy. Select "Copy file path" again.' })
   & $ui.Say1 $msg })
-$ui.PageB.Add_Click({ try { Start-Process -FilePath $radeUrl } catch { & $ui.Say1 'The browser could not be opened. Open the RADE page from your bookmarks.' } })
+$ui.PageB.Add_Click({ try { Start-Process -FilePath $homeUrl } catch { & $ui.Say1 'The browser could not be opened. Open the repository page from your bookmarks.' } })
 $ui.ShowFileB.Add_Click({ if ($ui.G.File) { Start-Process -FilePath 'explorer.exe' -ArgumentList ('/select,"' + $ui.G.File + '"') } })
 # Shows a hand step and waits until the user answers, then asks the step's questions; a step with "answersOnly" shows its
 # questions at once (E2). Takes the step, the file path, the address and the address file; gives back OK, Abort or Cancel.

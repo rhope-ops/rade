@@ -14,6 +14,7 @@
 # and the install record row on the site (the marker script of part 16, after a deploy step).
 # Kind: auto = runs on its own when the Check screen opens; signin = needs a CAC sign-in (button); guide = the Administrator looks
 # in another program and answers (button). Advisory: a problem is a WARNING, never a FAILED.
+$script:spEnabled = ('@@SP_ENABLED@@' -ne 'false')
 $checkDefs = @(
   @{ Id = 'nipr'; Group = 'Local'; Name = 'This computer is on NIPR (area52 domain)'; Kind = 'auto' },
   @{ Id = 'ps'; Group = 'Local'; Name = 'PowerShell is version 5.1 or newer'; Kind = 'auto' },
@@ -24,19 +25,23 @@ $checkDefs = @(
   @{ Id = 'child'; Group = 'Local'; Name = 'RADE can run its scripts'; Kind = 'auto' },
   @{ Id = 'outlook'; Group = 'Local'; Name = 'Outlook can make the results e-mail'; Kind = 'auto'; Advisory = $true },
   @{ Id = 'word'; Group = 'Local'; Name = 'Word is installed'; Kind = 'auto' },
-  @{ Id = 'pnp'; Group = 'Local'; Name = 'The SharePoint tool (PnP.PowerShell 1.12.0) is installed'; Short = 'The SharePoint tool (PnP 1.12.0) is installed'; Kind = 'auto' },
   @{ Id = 'net-bookmark'; Group = 'Network'; Name = 'The repository can be reached'; Kind = 'auto'; Advisory = $true },
-  @{ Id = 'net-site'; Group = 'Network'; Name = 'Your SharePoint site can be reached'; Kind = 'auto' },
   @{ Id = 'net-flow'; Group = 'Network'; Name = 'Power Automate can be reached'; Kind = 'auto' },
-  @{ Id = 'site-rights'; Group = 'Access'; Name = 'You can change the site (sign in with your CAC)'; Short = 'You can change the site (CAC sign-in)'; Kind = 'signin' },
   @{ Id = 'flow-guide'; Group = 'Access'; Name = 'You can import flows in Power Automate (you look)'; Short = 'You can import flows (you look)'; Kind = 'guide' }
 )
+if ($script:spEnabled) {
+  $checkDefs += @(
+    @{ Id = 'pnp'; Group = 'Local'; Name = 'The SharePoint tool (PnP.PowerShell 1.12.0) is installed'; Short = 'The SharePoint tool (PnP 1.12.0) is installed'; Kind = 'auto' },
+    @{ Id = 'net-site'; Group = 'Network'; Name = 'Your SharePoint site can be reached'; Kind = 'auto' },
+    @{ Id = 'site-rights'; Group = 'Access'; Name = 'You can change the site (sign in with your CAC)'; Short = 'You can change the site (CAC sign-in)'; Kind = 'signin' }
+  )
+}
 # Short: the name in the window's narrow check column (the Administrator, 2026-11-14); the log and the e-mail keep Name.
 $dot = ' ' + [char]0x00B7 + ' '   # a middle dot between facts, made at run time so the bundle stays ASCII
 # ---- Environment guard (the Administrator, 15 Nov 26): RADE runs on NIPR computers only. It reads this computer's own
 # full name (host name and its domain: two local values; nothing is sent and no host is contacted) and goes on only when
 # that name contains the NIPR domain label below. It cannot prove NIPR; it stops an honest mistake. The name is never shown or saved.
-$niprLabel = '.area52.'
+$niprLabel = '@@NIPR_LABEL@@'
 # Reads this computer's own host name and domain name (two local values; no host is contacted). Takes nothing; gives
 # back "host.domain", or an empty text on an error.
 function Get-OwnFqdn { try { $g = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties(); return [string]$g.HostName + '.' + [string]$g.DomainName } catch { return '' } }
@@ -50,7 +55,7 @@ function Get-SiteUrl([string]$Base) {
   if (Test-Path -LiteralPath $p -PathType Leaf) { try { return ([string](Get-Content -LiteralPath $p -TotalCount 1)).Trim() } catch { return '' } }
   return ''
 }
-$sitePrefix = 'https://usaf.dps.mil/sites/'   # the DAF SharePoint address every site starts with; the box starts with it
+$sitePrefix = '@@SITE_PREFIX@@'   # the DAF SharePoint address every site starts with; the box starts with it
 # Guardrail (the Administrator, 14 Nov 26): only a site on the DAF SharePoint host is accepted, so RADE never signs in to
 # or writes to another host.
 function Test-SiteUrl([string]$Url) { return ($Url -match ('^' + [regex]::Escape($sitePrefix) + '[^/\\\s"]+/?$')) }

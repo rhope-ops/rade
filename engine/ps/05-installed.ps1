@@ -73,7 +73,7 @@ function Read-InstalledRaw([string]$Key) {
 # Says whether the app's record was written by a newer RADE (a higher schema number). Takes the app; gives back $true or
 # $false.
 function Test-InstalledNewer($A) { return ((Read-InstalledRaw (Get-InstalledKey $A)).State -eq 'newer') }
-$newerRadeText = 'a newer RADE installed this application: get the newest script from the RADE page'
+$newerRadeText = 'a newer RADE installed this application: get the newest script from the repository page'
 function Get-InstalledBlock($A, [string]$Key = '') {
   # '' or why this app's record must not be written, so the app is not deployed (S1, S2). $Key: the record key ('' = read it now).
   switch ((Read-InstalledRaw $(if ($Key) { $Key } else { Get-InstalledKey $A })).State) {
@@ -192,8 +192,6 @@ function Get-StepDefault([int]$K) {
   if ($all) { return $true }
   return ($prior[[string]$steps[$K].Name] -ne 'PASSED')
 }
-# The RADE page (R28: the newer-version notice points here, not to the app page; the Administrator, 2026-11-17).
-$radeUrl = '@@RADE_PAGE@@'   # from apps.json "page" (fleet v2 DEC 7)
 function Get-NewerVersion {
   # Reads rade-release.json in the app repository (data, not code): { "apps": { "<app name>": "<version>" } }.
   # Returns that version when it is newer than the one this bundle installs, else ''. Short timeout; any failure is silent.
@@ -212,7 +210,7 @@ function Get-NewerVersion {
 # none. Takes nothing.
 function Get-NewerVersionText {
   $v = Get-NewerVersion
-  if ($v) { return ('A newer version, ' + $v + ', of ' + $script:app.Name + ' is on the RADE page (' + $radeUrl + '). Use that one instead.') }
+  if ($v) { return ('A newer version, ' + $v + ', of ' + $script:app.Name + ' is on the repository page (' + $homeUrl + '). Use that one instead.') }
   return ''
 }
 function Get-StartPath {

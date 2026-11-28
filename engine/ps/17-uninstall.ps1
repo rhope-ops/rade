@@ -116,17 +116,25 @@ $true (the default) keeps the Backups folder of the app folder; $false moves it 
 the Backups folder that stays, or ''.
 #>
 function Invoke-Uninstall([string]$Base, [scriptblock]$Tick, [scriptblock]$OnStep, [bool]$KeepBackups = $true) {
-  $site = Test-UninstallSite $Base
-  if (-not $site.Ok) { return @{ State = 'refused'; Path = ''; Lines = @($site.Lines) } }
+  $spMode = [bool]($script:spEnabled -and $script:app.Restore)
+  $site = $null; $bk = $null
+  if ($spMode) {
+    $site = Test-UninstallSite $Base
+    if (-not $site.Ok) { return @{ State = 'refused'; Path = ''; Lines = @($site.Lines) } }
+  }
   $blk = Get-InstalledBlock $script:app   # a record RADE must not write (newer, another app's, unreadable): no step runs
   if ($blk) { return @{ State = 'refused'; Path = ''; Lines = @(('Uninstall cannot run: ' + $blk + '.'), 'Nothing was changed.') } }   # the record's own reason and what to do
-  $bk = Invoke-Backup $Base $Tick
-  $noBk = @('Uninstall removed nothing: the backup did not save every list.', 'Nothing on the site changed. Select "Uninstall" again.')
-  if ($bk.State -ne 'done') { return @{ State = 'no-backup'; Path = ''; Lines = @($noBk + @($bk.Lines)) } }
+  if ($spMode) {
+    $bk = Invoke-Backup $Base $Tick
+    $noBk = @('Uninstall removed nothing: the backup did not save every list.', 'Nothing on the site changed. Select "Uninstall" again.')
+    if ($bk.State -ne 'done') { return @{ State = 'no-backup'; Path = ''; Lines = @($noBk + @($bk.Lines)) } }
+  }
   $stamp = Get-ToolStamp; $log = New-Object System.Collections.Generic.List[string]
   # The log callback of the steps: each line masked, kept for the report. Takes the line.
   $say = { param($t) $log.Add((ConvertTo-Masked ([string]$t))) }
-  $lines = @(('Test site: ' + $site.Name), ('Backup: ' + (Split-Path -Leaf $bk.Path) + ' (' + @($script:app.Backup).Count + ' lists)'))
+  $lines = $(if ($spMode) {
+      @(('Test site: ' + $site.Name), ('Backup: ' + (Split-Path -Leaf $bk.Path) + ' (' + @($script:app.Backup).Count + ' lists)'))
+    } else { @('Local-only uninstall (no SharePoint site).') })
   $extra = @{ RADE_MODE = 'uninstall'; RADE_MADE = '' }
   try { $null = Write-UninstallFile $Base; $extra.RADE_MADE = Save-UninstallMade $Base $stamp } catch { & $say ('NOTE: the made list or a step file could not be saved: ' + $_.Exception.Message) }
   $all = @($script:app.Uninstall); $done = 0; $stop = ''

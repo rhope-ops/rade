@@ -60,8 +60,11 @@ def refs(m):
     """Errors the schema cannot find: step files, unique step names and answer keys, the answers that failOn and showIf
     name, app and collect step names."""
     out = []
+    round_req = m.get('application', {}).get('capabilities', {}).get('round', True) is not False
     for b in m.get('bundles', []):
         r = b.get('round', '?')
+        if round_req and 'round' not in b:
+            out.append('%s: missing required property "round" (set application.capabilities.round: false to omit)' % r)
         have = {(f['dir'], Path(f['src']).name) for f in b.get('files', [])}
         names = [s['name'] for s in b.get('steps', [])]
         if len(names) != len(set(names)):
