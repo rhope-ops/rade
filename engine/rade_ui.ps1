@@ -17,7 +17,7 @@
 # and every font is made bigger by the same factor when the screen draws text smaller ($ui.FontScale in engine/rade_ui.ps1).
 # The native call is asked for before any form exists; it changes nothing when the process already has an awareness
 # (the call fails), and when a native call cannot be compiled (Constrained Language Mode) the window runs as before.
-# Inline C# (Add-Type -MemberDefinition) is forbidden by DEC-NIPR; use standard WinForms AutoScaleMode.Dpi.
+# Inline C# compilation is forbidden by DEC-NIPR; use standard WinForms AutoScaleMode.Dpi.
 $script:native = $false
 $script:dpiThread = 'n/a'
 $script:taskbarId = 'n/a'

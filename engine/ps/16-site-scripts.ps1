@@ -132,7 +132,7 @@ function Start-SignInReport {
   [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'None')]
   param()
   if (-not $PSCmdlet.ShouldProcess('the windows of this process', 'Report their state')) { return }
-  # Inline C# (Add-Type -MemberDefinition) is forbidden by DEC-NIPR; sign-in runs without native P/Invoke polling.
+  # Inline C# compilation is forbidden by DEC-NIPR; sign-in runs without native P/Invoke polling.
   $null = 0
 }
 function Stop-SignInReport {
