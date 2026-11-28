@@ -12,7 +12,7 @@ no blank console shows while the RADE window is open. When the window cannot ope
 None.
 #>
 function Show-RadeConsole {
-  # Inline C# (Add-Type -MemberDefinition) is forbidden by DEC-NIPR; text mode writes to the active host stream.
+  # Inline C# compilation is forbidden by DEC-NIPR; text mode writes to the active host stream.
   $null = 0
 }
 
