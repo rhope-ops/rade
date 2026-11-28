@@ -1,5 +1,5 @@
 {
- "commit": "696799a09dbcee6a7067a38d27035f93f24b9f7c",
+ "commit": "18c63b40380b44a255985fc067bcb1fdcc500486",
  "files": {
   ".claude/agents/reviewer.md": "6d6730991b88a41ab860e0c128626b94d82b2d36aa55b460ef206152b7377522",
   ".claude/agents/scout.md": "977d957d96b90c3b8c9d9793456d57401952810b9aa17cb25c34955381771e2d",
@@ -43,7 +43,7 @@
   "scripts/fleet_harvest.py": "49c167ba1877875ad4dbb81a4d6804a49af5938d584fd5dea570bde39a262946",
   "scripts/fleet_harvest_test.py": "3ebe16fdef9ca10110901c899ef1e2f35257ae19c15b97737853380d76171ae0",
   "scripts/fulcrum_palette.py": "0281296b1b3794e34733f9d2b134c4bca733f630d16359a6b46fa25d5484507b",
-  "scripts/git-hooks/pre-push": "245ce419893f6bb926d87ef083974134a1987826055b1a7313e175ff1cf0be2f",
+  "scripts/git-hooks/pre-push": "958fe65cb9a2d95a591007337e341d0e7951558b959ac919a25bda097f74c2c6",
   "scripts/log_check.py": "b6c5b9fb4c36e76b0db4a0fec773cc7c25b1f99f17024c14bcaf772b4565f1e9",
   "scripts/nipr_guard.py": "2a6f36dd587b316f5fa917ec6d6df6722b0ba523adcc73802467a678237094aa",
   "scripts/session_checkin.sh": "cd51f721ba8e0e4ccfdcdedfd02e53a00ab85a258d2b98191b118c401297dc22",
