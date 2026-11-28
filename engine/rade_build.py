@@ -88,7 +88,7 @@ RUN_STEPS = (
     '     Do not paste the red text from Windows PowerShell ISE in Teams: it can show your folder names.\n\n'
 )
 
-ENGINE_RELEASE = 50
+ENGINE_RELEASE = 51
 ROOT, APP, MANIFEST = None, None, None
 
 
