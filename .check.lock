@@ -1,10 +1,10 @@
 {
- "commit": "18c63b40380b44a255985fc067bcb1fdcc500486",
+ "commit": "5d1d444af6d83accaf28482f94a608f4ce8c91c4",
  "files": {
   ".claude/agents/reviewer.md": "6d6730991b88a41ab860e0c128626b94d82b2d36aa55b460ef206152b7377522",
   ".claude/agents/scout.md": "977d957d96b90c3b8c9d9793456d57401952810b9aa17cb25c34955381771e2d",
   ".claude/agents/worker.md": "c8c1bb3bfc51bc2aff5b52ea90afb07e9b0eddc0572313a4e2e879a436b5397f",
-  ".claude/rule-tests.md": "749dcbf2ae15f957d8062fdb653c0642ef5503170db51924a98c74078b9276a6",
+  ".claude/rule-tests.md": "ef0aef8e678689b1d70c56d151a212352e1a015e40669713618764f0fb107869",
   ".claude/skills/audit/SKILL.md": "8c1273f03984a4ca5f0923067fa1537cd6d563f74f30f299795c95026030fcb4",
   ".claude/skills/data-change/SKILL.md": "fb7ecde79eb2bbc5c7445358ebadec3eda879ff5ede3a440c37ae195d58161ef",
   ".claude/skills/delegate/SKILL.md": "b09ec86f7f3f8d68ee5ab44a012a5895313c94d9c7ba75c120b0e2533e30f8e6",
@@ -19,10 +19,10 @@
   ".claude/skills/verify/measure.mjs": "7558802e88715bd8624ff2252280ef6c088b70d995422be88d3d8829935eb102",
   ".github/workflows/check.yml": "b6724667f301d5fd23911d13896ea7ed9e4f7f812c08101d0e2b3607a2dd5fa1",
   ".pylintrc": "4037bb48015cccf3c278779d83972b448d7b9ebd5ae9d1b2f0fe8294dea26dbf",
-  "AGENTS.md (kit sections)": "e633fe3826c464c5018f9968d542be3ebc6ebf0789f96b55a632df5f2482e496",
+  "AGENTS.md (kit sections)": "ec3d4329ed7f7f5bce97bdab2962ef5b3a567bd944b59f97d849f4d2ee5524a9",
   "docs/brand/fulcrum.css": "5587c7252159c8d334002d5f3aee89d95c1f0f4f9c3b872250dfb81747182486",
   "docs/brand/fulcrum.json": "3e6673aca139036bf1acadb428ad6fcd23b8b73ce8a36d9da4ab939cf67f2f88",
-  "docs/code-standard.md": "a5628862ae44ab77ad5c68eceed2ea3342e839506d90835864bf4f5ab5d1871c",
+  "docs/code-standard.md": "aa17b4437e70a3533d6db22a8a27d2ae274ced6fa855bb73959d18892e1487a8",
   "ruff.toml": "db260d3e5717fd13c431435bfe7405d46ea65eaf572f4890c6a6a3b890a0fa2e",
   "scripts/bloat_check.py": "72e20ae2bd576284aa43bce338cf3325e66b5d652071c076ae90510ee9b6536a",
   "scripts/bloat_check_test.py": "5b61f544f634cafc0865ce9e711d87ade9dc75ae3bf49444438e08220c26bd44",
@@ -45,7 +45,7 @@
   "scripts/fulcrum_palette.py": "0281296b1b3794e34733f9d2b134c4bca733f630d16359a6b46fa25d5484507b",
   "scripts/git-hooks/pre-push": "958fe65cb9a2d95a591007337e341d0e7951558b959ac919a25bda097f74c2c6",
   "scripts/log_check.py": "b6c5b9fb4c36e76b0db4a0fec773cc7c25b1f99f17024c14bcaf772b4565f1e9",
-  "scripts/nipr_guard.py": "2a6f36dd587b316f5fa917ec6d6df6722b0ba523adcc73802467a678237094aa",
+  "scripts/nipr_guard.py": "0967a684f0f2b8664fc5b6e6a48901c18c4869d15f5807ef714c0f73c7ac19b2",
   "scripts/session_checkin.sh": "cd51f721ba8e0e4ccfdcdedfd02e53a00ab85a258d2b98191b118c401297dc22",
   "scripts/skill_use.py": "6524b10dbcbb373e42cadc67b17f9f72fd83b7cd1810059042486f6f6a439145",
   "scripts/stop_check.py": "61fe525c2ee0193f2768dda471014fec5b6844d1ce5fd29c2075960b0f076110",
@@ -55,5 +55,5 @@
  },
  "kit": "archimedes_lever",
  "overrides": [],
- "version": "16.0.0"
+ "version": "16.0.2"
 }

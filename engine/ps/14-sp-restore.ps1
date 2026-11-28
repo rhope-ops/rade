@@ -3,8 +3,8 @@
 # Puts back the rows of a backup that are missing from their list, on a test site only: a dry run with counts first,
 # then (after the user types the app name) a fresh backup, the pause switch, the Recycle Bin, then new rows with lookups
 # re-pointed. A row that is on the list is never changed, and no row is made twice.
-# Uses parts 01 to 08, 13 and 16 (Get-SiteUrl, Test-SiteUrl, Get-SiteMark, Invoke-ChildScript, Invoke-Backup,
-# Get-BackupFileName, ConvertTo-Masked).
+# Uses parts 01 to 08, 13 and 16 (Get-SiteUrl, Test-SiteUrl, Get-SiteMark, Invoke-ChildScript, Get-NewBackupDir,
+# Clear-BackupDir, Rename-BackupFile, Get-ToolStamp, Get-BackupFileName, ConvertTo-Masked).
 # Network: signs in to the saved site and reads only the lists the manifest names ("backup"), their fields and the
 # site's Recycle Bin (AGENTS.md "No reconnaissance").
 # Writes: site rows of the named lists (missing rows only) and the app's pause-switch row, after the typed confirm; on
@@ -303,6 +303,7 @@ Write-PlanLines
 if ($Mode -ne 'write') { 'RESULT plan'; exit 0 }
 if (-not (Test-SameAsPlan)) { 'RESULT changed'; exit 4 }
 if ($BackupFolder) {
+  # Converts a SharePoint field value to plain JSON/CSV text (C2; mirrors 13-maintenance.ps1 ConvertTo-PlainValue).
   function ConvertTo-PlainBackupValue($V) {
     if ($V -is [datetime]) { return $V.ToUniversalTime().ToString('o') }
     if (($null -eq $V) -or ($V -is [string]) -or ($V -is [ValueType])) { return $V }
@@ -547,8 +548,11 @@ function Invoke-Restore([string]$Base, [string]$Dir, $Plan, [scriptblock]$Tick) 
     elseif ($line -match '^RESUME (\S+)') { $resume = $Matches[1] } elseif ($line -match '^BINERR (\d+) ([A-Za-z0-9_.]+)$') { $binErr[[int]$Matches[1]] = $Matches[2] }
     elseif ($line -match '^BACKUP (\d+) (.+)$') { $bkGot[[int]$Matches[1]] = $Matches[2] } }
   $bkOk = $true
-  if ($res -in 'changed', 'paused-already', 'no-pause-row', 'pause-failed', 'backup-failed' -or $child.Stage) { $null = Clear-BackupDir $freshDir; $bkOk = $false }
-  else { for ($bi = 1; $bi -le $lists.Count; $bi++) { if ([string]$bkGot[$bi] -notmatch '^\d+$' -or -not (Rename-BackupFile $freshDir $bi (Get-BackupFileName ([string]$lists[$bi - 1])))) { $bkOk = $false } } }
+  if ($bkGot.Count -eq 0 -or $res -in 'changed', 'paused-already', 'no-pause-row', 'pause-failed', 'backup-failed' -or
+      $child.Stage) { $null = Clear-BackupDir $freshDir; $bkOk = $false }
+  else { for ($bi = 1; $bi -le $lists.Count; $bi++) {
+      $bn = Get-BackupFileName ([string]$lists[$bi - 1])
+      if ([string]$bkGot[$bi] -notmatch '^\d+$' -or -not (Rename-BackupFile $freshDir $bi $bn)) { $bkOk = $false } } }
   $freshLine = $(if ($bkOk) { 'Fresh backup before Restore: ' + (ConvertTo-Masked $freshDir) } else { 'Fresh backup before Restore: not saved.' })
   $stop = $(switch ($res) { 'changed' { 'the site changed after the dry run. Run Restore again for a new dry run' }
       'backup-failed' { 'the fresh backup before it did not save every list' }
@@ -579,5 +583,5 @@ function Invoke-Restore([string]$Base, [string]$Dir, $Plan, [scriptblock]$Tick) 
   if ($pause -and $resume -ne 'ok') { $bad++; $lines += "FINDING: the pause switch could not be put back. What to do: set it back by hand in the app's settings" }
   $head = @(('Restore put back ' + $back + ' of ' + $Plan.Missing + ' rows. Rows on the lists were not changed.'), $freshLine)
   if ($pause -and $resume -eq 'ok') { $head += "The app's pause switch is back as it was." }
-  return @{ State = $(if ($bad) { 'failed' } else { 'done' }); Path = $fresh.Path; Lines = @($head + $lines) }
+  return @{ State = $(if ($bad) { 'failed' } else { 'done' }); Path = $(if ($bkOk) { $freshDir } else { '' }); Lines = @($head + $lines) }
 }

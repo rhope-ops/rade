@@ -48,10 +48,15 @@ SKIP_PREFIXES = (
 )
 SELF_REL = "scripts/nipr_guard.py"
 
-# Invariant 1: ExecutionPolicy Bypass / Unrestricted
+# Invariant 1: ExecutionPolicy Bypass / Unrestricted and Unblock-File / Zone.Identifier removal
 RE_EXEC_BYPASS = re.compile(
     r"(?i)(?:-(?:ExecutionPolicy|Exec|EP)\s+(?:Bypass|Unrestricted)\b"
     r"|Set-ExecutionPolicy\s+[^\r\n]*\b(?:Bypass|Unrestricted)\b)"
+)
+RE_UNBLOCK = re.compile(
+    r"(?i)(?:\bUnblock-File\b"
+    r"|(?:Remove-Item|Clear-Content|del|erase|ri|clc)\b[^\r\n]*Zone\.Identifier\b"
+    r"|Zone\.Identifier\b[^\r\n]*(?:Remove-Item|Clear-Content)\b)"
 )
 
 # Invariant 2: Inline C# compilation (Add-Type -AssemblyName is allowed)
@@ -203,6 +208,8 @@ def scan_text(rel_path: str, text: str) -> list[str]:
             findings.append(f"{rel_path}:{lineno}: NIPR-1 -ExecutionPolicy Bypass/Unrestricted forbidden")
         if is_test:
             continue
+        if suffix in {".ps1", ".psm1", ".txt"} and RE_UNBLOCK.search(line):
+            findings.append(f"{rel_path}:{lineno}: NIPR-1 Unblock-File / Zone.Identifier removal forbidden")
         # Invariant 4: hardcoded OneDrive / tenant paths
         if RE_HARDCODED_ONEDRIVE.search(line):
             findings.append(f"{rel_path}:{lineno}: NIPR-4 hardcoded 'OneDrive - United States Air Force' path forbidden")
@@ -283,11 +290,11 @@ def scan_repo(root: pathlib.Path, paths: list[str] | None = None) -> list[str]:
     return findings
 
 
-def self_test() -> int:
-    """Run unit tests for all 7 DEC-NIPR invariants and return 0 on pass, 1 on fail.
+def _test_cases() -> list[tuple[str, str, str, str]]:
+    """Build unit test cases for all 7 DEC-NIPR invariants.
 
     Returns:
-        Exit code 0 on pass, 1 on any test failure.
+        List of (label, relative_path, content, expected_code) tuples.
     """
     # Construct test strings dynamically so this file stays clean of literal triggers.
     ep_bad = "-Execution" + "Policy By" + "pass -File run.ps1"
@@ -306,10 +313,17 @@ def self_test() -> int:
     )
     webclient_bad = "$wc = New-Object System.Net." + "WebClient"
     creds_bad = "$req.UseDefault" + "Credentials = $true"
+    unblock_bad = "Unblock" + "-File -Path $scriptPath"
+    zone_bad = "Remove-Item -Path ($scriptPath + ':Zone." + "Identifier') -Force"
+    zone_read_ok = "Get-Item -Path $scriptPath -Stream 'Zone." + "Identifier' -ErrorAction SilentlyContinue"
 
-    cases = [
+    return [
         ("NIPR-1 catches Bypass in workflow", ".github/workflows/ci.yml", ep_bad, "NIPR-1"),
         ("NIPR-1 allows defensive env clear", "engine/run.ps1", "Remove-Item Env:PSExecutionPolicyPreference", ""),
+        ("NIPR-1 catches Unblock-File in ps1", "engine/run.ps1", unblock_bad, "NIPR-1"),
+        ("NIPR-1 catches Zone.Identifier removal", "engine/run.ps1", zone_bad, "NIPR-1"),
+        ("NIPR-1 allows Zone.Identifier read-only check", "engine/run.ps1", zone_read_ok, ""),
+        ("NIPR-1 skips Unblock-File in test file", "tests/Run-Tests.ps1", unblock_bad, ""),
         ("NIPR-2 catches Add-Type MemberDefinition", "engine/ui.ps1", add_type_bad, "NIPR-2"),
         ("NIPR-2 allows Add-Type AssemblyName", "engine/ui.ps1", add_type_ok, ""),
         ("NIPR-3 catches TEMP .ps1 execution", "engine/run.ps1", temp_bad, "NIPR-3"),
@@ -323,6 +337,15 @@ def self_test() -> int:
         ("NIPR-7 catches WebClient", "engine/net.ps1", webclient_bad, "NIPR-7"),
         ("NIPR-7 catches UseDefaultCredentials", "engine/net.ps1", creds_bad, "NIPR-7"),
     ]
+
+
+def self_test() -> int:
+    """Run unit tests for all 7 DEC-NIPR invariants and return 0 on pass, 1 on fail.
+
+    Returns:
+        Exit code 0 on pass, 1 on any test failure.
+    """
+    cases = _test_cases()
     failed = 0
     for label, rel, content, expect in cases:
         found = scan_text(rel, content)
@@ -332,7 +355,7 @@ def self_test() -> int:
 
     with tempfile.TemporaryDirectory() as tmp:
         p = pathlib.Path(tmp) / "sample.ps1"
-        p.write_text(ep_bad + "\n", encoding="utf-8")
+        p.write_text("-Execution" + "Policy By" + "pass -File run.ps1\n", encoding="utf-8")
         found = scan_repo(pathlib.Path(tmp), [str(p)])
         ok = any("NIPR-1" in line for line in found)
         failed += not ok
