@@ -18,7 +18,7 @@ import textwrap
 from pathlib import Path
 
 ENGINE_ROOT = Path(__file__).resolve().parent.parent
-UI_FILE = ENGINE_ROOT / 'engine/ps/window/ui-theme.ps1'
+UI_FILE = ENGINE_ROOT / 'engine/rade_ui.ps1'
 # The engine files this module adds (engine/rade_build.py puts them into the engine's hash, ENGINE_SHA).
 FILES = ['engine/rade_tokens.py', 'engine/ui-tokens.json']
 
