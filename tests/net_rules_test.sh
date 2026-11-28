@@ -53,7 +53,7 @@ P
 [ "$(pwsh -NoProfile -File "$t/request.ps1" 2>&1)" = "REQUESTOK" ] || { echo "FAIL Get-WebRequest: the sign-in is not off, the agent or timeout is not set, or TLS 1.2 is not the floor"; fail=1; }
 # Every engine file: one place makes web requests (Get-WebRequest; the download's WebClient sets the sign-in off itself),
 # no line turns the sign-in on, and only a proxy gets credentials.
-all="engine/ps/*.ps1 engine/ps/window/*.ps1"
+all="engine/rade_ui.ps1 engine/ps/*.ps1 engine/ps/window/*.ps1"
 # shellcheck disable=SC2086
 if grep -nE 'UseDefaultCredentials *= *\$true' $all || grep -nE '\.Credentials *=' $all | grep -v 'Proxy\.Credentials' \
    || [ "$(grep -hc 'WebRequest\]::Create' $all | awk '{s+=$1} END {print s+0}')" != 1 ] \

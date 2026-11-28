@@ -40,9 +40,9 @@ What an application repository must hold so that RADE can test and deploy it. RA
 
 UI standard v1 ([ui-standard.md](ui-standard.md); the Administrator, 2026-11-20) holds for every window an app shows, also its own (for example a step's own form). For a bundle the engine does it all: a lock on an engine release from engine-v29 is enough. For an app's own window:
 
-1. Copy `engine/rade_ui.ps1` and then `engine/rade_ui_text.ps1` of the locked commit into the window as they are, in this order (the token block comes with the first file); build every button with `$ui.Btn` (`'action'` or `'compact'`) and every link with `$ui.LinkBtn`, and take colors only from `$ui.C` and sizes only from `$ui.Z`.
+1. Copy `engine/rade_ui.ps1` of the locked commit into the window as it is (the token block comes with it); build every button with `$ui.Btn` (`'action'` or `'compact'`) and every link with `$ui.LinkBtn`, and take colors only from `$ui.C` and sizes only from `$ui.Z`.
 2. Put the primary button last in the action row, one at most, at most 3 others; Back is a compact "Back (Esc)" at the left end.
-3. Hook `$ui.Recolor` on the form's `SystemColorsChanged`, as the engine does (engine/ps/window/10-keys.ps1), so a contrast theme takes effect while the window is open.
+3. Hook `$ui.Recolor` on the form's `SystemColorsChanged`, as the engine does (engine/ps/window/ui-runner.ps1), so a contrast theme takes effect while the window is open.
 4. Run `$ui.Check` on each card in a test round and fix every `LAYOUT` line; set `RADE_INVENTORY` to keep a JSON line per control.
 5. Set `"ui": "v1"` for the app in [../apps.json](../apps.json) when its windows follow the standard (the Administrator's change, as in step 5 above).
 

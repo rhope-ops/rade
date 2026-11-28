@@ -35,7 +35,7 @@ ENGINE_PARTS = [
     '14-sp-restore.ps1', '17-uninstall.ps1', '09-start.ps1', '10-window.ps1', '11-text-mode.ps1',
 ]
 WINDOW_PARTS = [
-    'window/ui-theme.ps1', 'window/ui-shell.ps1', 'window/ui-cards.ps1', 'window/ui-runner.ps1',
+    'window/ui-shell.ps1', 'window/ui-cards.ps1', 'window/ui-runner.ps1',
 ]
 WINDOW_SLOT = '    # @@WINDOW@@\n'
 
@@ -88,7 +88,7 @@ RUN_STEPS = (
     '     Do not paste the red text from Windows PowerShell ISE in Teams: it can show your folder names.\n\n'
 )
 
-ENGINE_RELEASE = 50
+ENGINE_RELEASE = 51
 ROOT, APP, MANIFEST = None, None, None
 
 
@@ -157,7 +157,9 @@ def engine_text():
     def banner(rel):
         """Return the banner comment for one engine part."""
         return '# ==== Engine part: engine/ps/%s (sha256 %s)\n' % (rel, file_sha('engine/ps/' + rel))
-    window = ''.join(indent(banner(w) + read(w), '    ') for w in WINDOW_PARTS)
+    ui_head = '# ==== Engine part: engine/rade_ui.ps1 (sha256 %s)\n' % file_sha('engine/rade_ui.ps1')
+    ui_body = (ENGINE_ROOT / 'engine/rade_ui.ps1').read_text(encoding='utf-8')
+    window = indent(ui_head + ui_body, '    ') + ''.join(indent(banner(w) + read(w), '    ') for w in WINDOW_PARTS)
     text = ''.join(banner(p) + read(p).replace(WINDOW_SLOT, window) for p in ENGINE_PARTS)
     return '\n' + text
 
@@ -315,7 +317,8 @@ def collect_problems(b):
 
 def part_lines():
     """Return header lines listing each engine PowerShell part and its short SHA-256."""
-    rels = ['engine/ps/' + x for x in ENGINE_PARTS + WINDOW_PARTS]
+    # engine/rade_ui.ps1 is listed where the build puts it: first in the window block, before the window parts.
+    rels = ['engine/ps/' + x for x in ENGINE_PARTS] + ['engine/rade_ui.ps1'] + ['engine/ps/' + x for x in WINDOW_PARTS]
     rows = [' '.join('%s, sha256 %s;' % (r, file_sha(r)) for r in rels[k:k + 4]) for k in range(0, len(rels), 4)]
     return '  Engine parts, in run order:\n' + ''.join('    %s\n' % r for r in rows)
 
@@ -724,7 +727,7 @@ def engine_for_app():
     Returns:
         Parameterized PowerShell engine script string for the current APP.
     """
-    ui_file = ENGINE_ROOT / 'engine/ps/window/ui-theme.ps1'
+    ui_file = ENGINE_ROOT / 'engine/rade_ui.ps1'
     rade_tokens.check_tokens(ui_file.read_text(encoding='utf-8'))
     in_ps = {k: v for k, v in site_values().items() if k != '@@RADE_REPO@@'}
     engine = ENGINE
@@ -899,7 +902,7 @@ def text_lengths(b):
 LOGO = ENGINE_ROOT / logo_path()
 ENGINE_SHA = hashlib.sha256(b''.join(
     rel.encode() + b'\0' + (ENGINE_ROOT / rel).read_bytes() + b'\0'
-    for rel in ['engine/rade_build.py'] + ['engine/ps/' + x for x in ENGINE_PARTS + WINDOW_PARTS]
+    for rel in ['engine/rade_build.py', 'engine/rade_ui.ps1'] + ['engine/ps/' + x for x in ENGINE_PARTS + WINDOW_PARTS]
     + ['engine/window.json', 'apps.json', logo_path()] + rade_tokens.FILES
 )).hexdigest()
 

@@ -26,7 +26,7 @@ BLOCK = ('# >>> demo-common: generated from scripts/gov/src/demo-common.ps1 by a
 RESULTS = []
 DISCARD = 'catch { $null = $_ }'   # the discarded-error form that rule X7 counts
 # Engine PowerShell sources that rule X7 covers (the files the bundle is made of).
-ENGINE_PS = ('engine/ps/*.ps1', 'engine/ps/window/*.ps1')
+ENGINE_PS = ('engine/rade_ui.ps1', 'engine/ps/*.ps1', 'engine/ps/window/*.ps1')
 # Standards plan Stage 5 (the Administrator approved the plan, 2026-11-17; this count is an agent's work under it).
 # Discarded-error catches with no reason on their line (106 of 129 on 2026-11-17).
 # This number may only go down: lower it when you add reasons; never raise it.

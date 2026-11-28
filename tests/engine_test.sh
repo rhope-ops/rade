@@ -6,8 +6,8 @@
 # Covers deploy v1 (docs/engine.md): a deploy sends nothing and keeps one record file for each app in RADE\Config\installed (docs/engine.md "Shared files"); a test round is unchanged.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
-engine_src="engine/rade_build.py $(ls engine/ps/*.ps1 engine/ps/window/*.ps1 | tr '\n' ' ')"   # the build file and its PowerShell parts (docs/code-standard.md C10)
-ui_src="engine/ps/window/ui-theme.ps1"   # the shared UI theme module in build order
+engine_src="engine/rade_build.py engine/rade_ui.ps1 $(ls engine/ps/*.ps1 engine/ps/window/*.ps1 | tr '\n' ' ')"   # the build file and its PowerShell parts (docs/code-standard.md C10)
+ui_src="engine/rade_ui.ps1"   # the shared UI theme module in build order
 pass=0; fail=0
 # Every run below gets this variable, as a RADE started from a shortcut made before engine-v36 has it on Windows (its
 # -ExecutionPolicy setting hands it down). The engine must take it out (fleet v2, DEC 3): the child check's test script
@@ -84,10 +84,10 @@ sed -i 's#"logo": "assets/sample-logo.png"#"logo": "../sample-logo.png"#' "$t/ap
 for bad in "/etc/sample-logo.png" "assets/../../sample-logo.png"; do sed -i "s#\"logo\": \"[^\"]*\"#\"logo\": \"$bad\"#" "$t/app/scripts/paste_bundles.json"; python3 engine/rade_build.py --app-root "$t/app" > "$t/lg.txt" 2>&1; grep -q "application.logo: the path must stay inside the application repo" "$t/lg.txt" && ok || bad "build stops on application logo $bad"; done
 sed -i 's#"logo": "[^"]*"#"logo": "assets/sample-logo.png"#' "$t/app/scripts/paste_bundles.json"
 mv "$t/sl.png" "$t/app/assets/sample-logo.png"; build || bad "rebuild after the application logo checks"
-# Dark is opt-in (review of PR 211): ui-theme.ps1 alone takes the light set when $ui.Dark is not set.
-[ "$(pwsh -NoProfile -Command 'function Get-ItemPropertyValue { 0 }; $t = Get-Content engine/ps/window/ui-theme.ps1 -Raw; $a = $t.IndexOf("# ---- UI tokens"); $b = $t.IndexOf("# ---- Fonts, sizes and buttons")
+# Dark is opt-in (review of PR 211): rade_ui.ps1 alone takes the light set when $ui.Dark is not set.
+[ "$(pwsh -NoProfile -Command 'function Get-ItemPropertyValue { 0 }; $t = Get-Content engine/rade_ui.ps1 -Raw; $a = $t.IndexOf("# ---- UI tokens"); $b = $t.IndexOf("# ---- Fonts, sizes and buttons")
   foreach ($d in @($null, $true)) { $ui = @{ Dark = $d }; . ([scriptblock]::Create($t.Substring($a, $b - $a))); ($ui.C.White.ToArgb() -band 0xFFFFFF).ToString("X6") + "/" + $ui.Dark }' 2>&1 | tr '\n' ' ')" = "FFFFFF/False 15171D/True " ] &&
-  grep -q "^\$ui.Dark = \[bool\](& \$ui.DarkOn)$" engine/ps/window/ui-theme.ps1 && ok || bad "dark is opt-in: ui-theme.ps1 alone is light; the RADE window reads the app mode"
+  grep -q "^\$ui.Dark = \[bool\](& \$ui.DarkOn)$" engine/rade_ui.ps1 && ok || bad "dark is opt-in: rade_ui.ps1 alone is light; the RADE window reads the app mode"
 # application.logoDark (plan engine-v48 D6): the logo of the dark mode, with the rules of logo; without it the bundle's value is empty.
 grep -q "^\$appLogoDarkPng = ''$" "$t/app/scripts/gov/paste/SAMPLE-R01-round-r1.ps1" && sed -i 's#"logo": "assets/sample-logo.png"#"logo": "assets/sample-logo.png", "logoDark": "assets/sample-logo.png"#' "$t/app/scripts/paste_bundles.json" &&
   python3 engine/rade_build.py --app-root "$t/app" > "$t/lg.txt" 2>&1 && grep -A1 "^\$appLogoDarkPng = @'$" "$t/app/scripts/gov/paste/SAMPLE-R01-round-r1.ps1" | grep -q "^iVBORw0KGgo" &&
@@ -137,7 +137,7 @@ P
 # ---- sizes and text lengths (docs/window-design.md "Sizes", "Text lengths"; the Administrator, 2026-11-15)
 # Every button is made with a named kind (its size is in $ui.Z), and no other place sets a button's size.
 # (The bottom line's own minimum height, 46, is not a button size: R24. Cards v2: the running step's row and the WHAT TO DO box are as wide as the card's text.)
-[ "$(cat $engine_src | grep -o '& \$ui\.Btn [^;)]*' | sort -u | tr '\n' '|')" = "& \$ui.Btn 'action'|& \$ui.Btn 'compact'|" ] && [ "$(grep -o 'MinimumSize = [^;]*' engine/ps/window/ui-theme.ps1 | wc -l)" = 1 ] && [ "$(cat $engine_src | grep -c 'MinimumSize = ')" = 6 ] && grep -q '^\$ui.Btn = { param(\[string\]\$Kind) \$b = New-Object System.Windows.Forms.Button; \$b.AutoSize = \$false;' engine/ps/window/ui-theme.ps1 && grep -q 'ui.Head.MinimumSize = ' engine/ps/window/ui-cards.ps1 && ok || bad "sizes: a button is made without a kind, or sets its own size"
+[ "$(cat $engine_src | grep -o '& \$ui\.Btn [^;)]*' | sort -u | tr '\n' '|')" = "& \$ui.Btn 'action'|& \$ui.Btn 'compact'|" ] && [ "$(grep -o 'MinimumSize = [^;]*' engine/rade_ui.ps1 | wc -l)" = 1 ] && [ "$(cat $engine_src | grep -c 'MinimumSize = ')" = 6 ] && grep -q '^\$ui.Btn = { param(\[string\]\$Kind) \$b = New-Object System.Windows.Forms.Button; \$b.AutoSize = \$false;' engine/rade_ui.ps1 && grep -q 'ui.Head.MinimumSize = ' engine/ps/window/ui-cards.ps1 && ok || bad "sizes: a button is made without a kind, or sets its own size"
 grep -q 'ui.BtnRow.MinimumSize = ' engine/ps/window/ui-cards.ps1 && ok || bad "sizes: the action row is as wide as the column (B3)"
 # The limits in the document are the limits of the build.
 python3 - <<'P' && ok || bad "text lengths: docs/window-design.md and TEXT_LIMITS (engine/rade_build.py) differ"
@@ -232,7 +232,7 @@ grep -q "^Mode: deploy, version 1.0.0 (not installed yet)" "$od/RADE/SampleApp/R
 grep -q "^Step 1 of 2: T02 Sample import r1" "$t/out.txt" && ! grep -q "contract=1" "$t/out.txt" && grep -q "^T01 Sample check r1: already done for version 1.0.0, not run again" "$od/RADE/SampleApp/Rounds/R01/SAMPLE-R01-report-r1.txt" && ok || { bad "item 3: a step that PASSED must start off"; grep "^Step " "$t/out.txt"; }
 grep -q "^Version 1.0.0 of Sample app (deploy) is recorded as installed" "$t/out.txt" && grep -q "^DONE in .*Nothing was sent\.$" "$t/out.txt" && ok || bad "deploy 1: DONE line says nothing was sent"
 # The child check (DEC 3): its test script runs with no -ExecutionPolicy setting and none handed down; the engine has no such flag.
-grep -rq "Test script ran" "$t/out.txt" "$od/RADE/SampleApp/Rounds/R01" && ! grep -rqE "ExecutionPolicy[[:space:]]+Bypass" engine/ps && ok || { bad "child check: the detail has no 'Test script ran', or the engine still sets -ExecutionPolicy"; grep -rh "Test script" "$t/out.txt" "$od/RADE/SampleApp/Rounds/R01" | head -3; }
+grep -rq "Test script ran" "$t/out.txt" "$od/RADE/SampleApp/Rounds/R01" && ! grep -rqE "ExecutionPolicy[[:space:]]+Bypass" engine/ps engine/rade_ui.ps1 && ok || { bad "child check: the detail has no 'Test script ran', or the engine still sets -ExecutionPolicy"; grep -rh "Test script" "$t/out.txt" "$od/RADE/SampleApp/Rounds/R01" | head -3; }
 # Every check's detail is in a local file that is not in the results folder, so no e-mail draft attaches it (2026-11-18).
 grep -q "^PASSED: RADE can run its scripts. Test script ran" "$cfg/rade-checks-last.txt" && ok || bad "checks: no child detail in Config/rade-checks-last.txt"
 grep -q "no e-mail draft attaches it" "$cfg/rade-checks-last.txt" && ! grep -rq "Test script ran" "$od/RADE/SampleApp/Rounds" && ok || bad "checks: the detail file's note, or a detail in the results folder"
