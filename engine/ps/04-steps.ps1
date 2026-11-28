@@ -381,6 +381,7 @@ function Save-RoundDraft([string]$Dir, [string[]]$Summary, [string]$To, [string]
   # Never sent: this code has no Send call (tests/run.sh checks). Classic Outlook only (new Outlook has no COM): else fall back.
   if ($env:OS -ne 'Windows_NT') { return 'not Windows' }
   try {
+    if (-not (Test-Path -LiteralPath 'Registry::HKEY_CLASSES_ROOT\Outlook.Application')) { return 'Classic Outlook is not registered' }
     $ol = New-Object -ComObject Outlook.Application
     $m = $ol.CreateItem(0)
     $m.Subject = $Summary[0]

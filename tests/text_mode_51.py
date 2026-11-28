@@ -182,7 +182,7 @@ def checks(code, lines, record, errors):
             starts(lines, "Note: some steps were off or skipped, so version 1.0.0 is not recorded as installed"),
         ),
         ("a file downloaded from the (local) release", starts(lines, "  Downloaded   T02\\SAMPLE-data-r1.txt")),
-        ("newer-version notice of a deploy", starts(lines, "A newer version, 9.0.0, of Sample app (deploy) is on the RADE page")),
+        ("newer-version notice of a deploy", starts(lines, "A newer version, 9.0.0, of Sample app (deploy) is on the repository page")),
         ("the step that needs the skipped step is skipped", starts(lines, "  Result: SKIPPED (it needs ")),
         ("the finished line says nothing was sent", any(re.match(r"DONE in .*Nothing was sent\.$", line) for line in lines)),
         ("install record: PASSED, not installed, last version 1.0.0 (got %s)" % (record,), record == ("PASSED", None, "1.0.0")),

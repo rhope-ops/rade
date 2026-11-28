@@ -221,7 +221,7 @@ psrun "$t/f.ps1" "$t/outf.txt" $'2\n\n\n\n' USERPROFILE="$t/fu/test1234"
 grep -q "could not be downloaded, so no step ran" "$t/outf.txt" && ! grep -q "^Step 1 of" "$t/outf.txt" && grep -q "^For help, ask in the Teams channel" "$t/outf.txt" && grep -q '"state":  *"STOPPED"' "$t/fu/test1234/OneDrive - United States Air Force/RADE/Config/installed/$(rec 'SampleApp/Sample app (deploy)')" && ok || { bad "item 5: a failed download must stop a deploy before its steps"; tail -8 "$t/outf.txt"; }
 echo "GROUP $pass $fail"; } > "$t/grp-F.log" 2>&1 &
 # A newer version in rade-release.json: in text mode it is named in a deploy only (the window shows it in a test round too).
-grep -q "^A newer version, 9.0.0, of Sample app (deploy) is on the RADE page" "$t/out0.txt" && ok || bad "newer-version notice in a deploy"
+grep -q "^A newer version, 9.0.0, of Sample app (deploy) is on the repository page" "$t/out0.txt" && ok || bad "newer-version notice in a deploy"
 
 # 1. First deploy: every step on, PASSED, version recorded, nothing sent.
 round 2
@@ -404,7 +404,7 @@ rm -f "$inst.damaged"; head -c 150 "$inst" > "$t/cut.json"; cp "$t/cut.json" "$i
 cmp -s "$inst.damaged" "$t/cut.json" && valid schemas/rade-installed.schema.json "$inst" && ok || { bad "shared files: a cut record"; ls "$cfg/installed"; }
 # S2. A record from a newer RADE (a higher schema number): not written, and no step runs.
 cp "$inst" "$t/inst.good"; echo '{ "schema": "rade-installed/3", "key": "SampleApp/Sample app (deploy)", "later": true }' > "$inst"; h0=$(sha "$inst"); round 2
-[ "$(sha "$inst")" = "$h0" ] && grep -q "^Mode: deploy, version 1.2.0 (a newer RADE installed this application: get the newest script from the RADE page)" "$t/out.txt" && grep -q "^STOPPED: a newer RADE installed this application.*No step ran" "$t/out.txt" && ! grep -q "^Step 1 of\|^  Wrote\|^  Written\|^  Downloaded" "$t/out.txt" && [ -z "$(find "$cfg" -name '*.tmp*')" ] && ok || { bad "shared files: a record of a newer RADE must stop the deploy and stay as it is"; grep "^Mode\|^STOPPED\|^Step\|record" "$t/out.txt"; }
+[ "$(sha "$inst")" = "$h0" ] && grep -q "^Mode: deploy, version 1.2.0 (a newer RADE installed this application: get the newest script from the repository page)" "$t/out.txt" && grep -q "^STOPPED: a newer RADE installed this application.*No step ran" "$t/out.txt" && ! grep -q "^Step 1 of\|^  Wrote\|^  Written\|^  Downloaded" "$t/out.txt" && [ -z "$(find "$cfg" -name '*.tmp*')" ] && ok || { bad "shared files: a record of a newer RADE must stop the deploy and stay as it is"; grep "^Mode\|^STOPPED\|^Step\|record" "$t/out.txt"; }
 # S1. Two record keys that give one file name: the file holds a whole record of another app. Not written, no step runs.
 sed 's#"key": *"SampleApp/Sample app (deploy)"#"key": "SampleApp/Another app"#' "$t/inst.good" > "$inst"; h0=$(sha "$inst"); round 2
 grep -q '"key": "SampleApp/Another app"' "$inst" && [ "$(sha "$inst")" = "$h0" ] && grep -q "^STOPPED: the install record file of this application holds the record of another application.*No step ran" "$t/out.txt" && ! grep -q "^Step 1 of" "$t/out.txt" && [ ! -e "$inst.damaged-"* ] && ok || { bad "shared files: a record with another app's key must stay as it is"; grep "^Mode\|^STOPPED\|^Step\|record" "$t/out.txt"; ls "$cfg/installed"; }
@@ -439,7 +439,7 @@ grep -q '\$script:draftMade = (-not \$why)' $engine_src && grep -q "Outlook draf
 
 # The tagline: RADE's full name under the word RADE (engine-v47, the Administrator, 2026-11-26; "Test, deploy, enjoy" before); no "DoD".
 ! grep -q "for your DoD organization" $engine_src && grep -q "'Redacted Application Deployment Engine'" $engine_src && ! grep -q "Test, deploy, enjoy" $engine_src && ok || bad "tagline"
-# Local-only app (DEC-RADE): zero SharePoint config, optional collect, HTML start target, schema + build + parse clean.
+# Local-only app (DEC-RADE / Batch F4b): zero SharePoint parts/checks, round:false, Install -> Diagnose -> Uninstall in pwsh.
 local_app="$t/local-app"; mkdir -p "$local_app/app" "$local_app/out"
 printf '<!doctype html><html><body>Local Tool</body></html>\n' > "$local_app/app/index.html"
 printf 'Write-Host "Local install ok"\n' > "$local_app/app/install.ps1"
@@ -457,7 +457,6 @@ cat > "$local_app/manifest.json" <<'JSON'
   },
   "bundles": [{
     "out": "out/LOC-R01-install.ps1",
-    "round": "R01",
     "title": "Install Local Tool",
     "files": [
       { "dir": "app", "src": "app/index.html" },
@@ -480,8 +479,31 @@ JSON
 python3 scripts/check_manifest.py "$local_app/manifest.json" > /dev/null &&
   python3 engine/rade_build.py --app-root "$local_app" --manifest manifest.json > /dev/null &&
   grep -q "Start = 'app/index.html'" "$local_app/out/LOC-R01-install.ps1" &&
-  ! grep -q "'site-rights'" "$local_app/out/LOC-R01-install.ps1" | grep -q "Checks = @([^)]*'site-rights'" &&
-  ok || bad "local-only HTML/PS1 app: schema, build, and start target"
+  ! grep -q "# ==== .*14-sp-restore.ps1" "$local_app/out/LOC-R01-install.ps1" &&
+  ! grep -q "# ==== .*16-site-scripts.ps1" "$local_app/out/LOC-R01-install.ps1" &&
+  ! grep -q "Checks = @([^)]*'site-rights'" "$local_app/out/LOC-R01-install.ps1" &&
+  ok || bad "local-only HTML/PS1 app: schema, build, omitted SP parts, and start target"
+swap "$local_app/out/LOC-R01-install.ps1" "$local_app/run.ps1" "$t/lu"
+mkdir -p "$t/lu/localuser/OneDrive - United States Air Force"
+printf '\n\n' | USERPROFILE="$t/lu/localuser" pwsh -NoProfile -File "$local_app/run.ps1" > "$local_app/install.log" 2>&1 &&
+  grep -q "Local install ok" "$local_app/install.log" &&
+  test -f "$t/lu/localuser/OneDrive - United States Air Force/RADE/LocalTool/app/index.html" &&
+  ok || bad "local-only app: Install in pwsh"
+pwsh -NoProfile -Command "
+  \$env:USERPROFILE = '$t/lu/localuser'
+  \$t = Get-Content '$local_app/run.ps1' -Raw
+  \$s = \$t.IndexOf('\$script:PasteBody = {')
+  \$s = \$t.IndexOf([char]10, \$s) + 1
+  \$cut = \$t.IndexOf('# ==== Engine part: engine/ps/09-start.ps1', \$s)
+  if (\$cut -lt 0) { \$cut = \$t.LastIndexOf('}', \$t.IndexOf('# ==== Paste guard, end', \$s)) }
+  . ([scriptblock]::Create(\$t.Substring(\$s, \$cut - \$s)))
+  \$script:app = \$apps[0]
+  \$diag = Invoke-Diagnose (Get-BasePath) {}
+  \$un = Invoke-Uninstall (Get-BasePath) {} \$null \$false
+  if (\$un.State -ne 'done') { throw ('Uninstall failed: ' + \$un.State + ' ' + (\$un.Lines -join '; ')) }
+" > "$local_app/un.log" 2>&1 &&
+  ! test -d "$t/lu/localuser/OneDrive - United States Air Force/RADE/LocalTool" &&
+  ok || bad "local-only app: Diagnose + Uninstall in pwsh recycles local artifacts"
 psclose; gather   # wait for the groups and add their results
 echo "ENGINE pass=$pass fail=$fail"
 [ "$fail" -eq 0 ]

@@ -154,7 +154,7 @@ try {
   'RESULT done'; exit 0
 } catch { 'RESULT not-connected ' + $_.Exception.GetType().Name; exit 2 }
 '@
-$backupScript = Add-SignInSize $backupScript   # E3: the sign-in block (16-site-scripts.ps1)
+if (Get-Command Add-SignInSize -ErrorAction SilentlyContinue) { $backupScript = Add-SignInSize $backupScript }   # E3: the sign-in block (16-site-scripts.ps1)
 
 # Gives the file name (no extension) of a saved list: its title with any sign a file name cannot hold made "_" (the
 # build allows letters, digits, space, "_", "-", "(" and ")", so this changes nothing today). Takes the list title.

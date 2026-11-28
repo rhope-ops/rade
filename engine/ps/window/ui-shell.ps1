@@ -972,8 +972,11 @@ $ui.VMaint = {
   $off = @{ Off = $true; Soon = $true; Index = 0; Name = ('Install ' + $script:app.Version); Ver = ''; Sub = ''; R1 = '' }
   $fixSub = $(if ($verb -eq 'Repair') { 'Adds what is missing. Keeps your data.' } else { 'Installs ' + $script:app.Version + ' and keeps your data.' })
   $fix = @{ Index = 10; Name = $verb; Ver = ''; Sub = $fixSub; R1 = 'Runs the checks' }
-  $un = $(if (@($script:app.Uninstall).Count) {
-      @{ Index = 20; Name = 'Uninstall'; Ver = ''; Danger = $true; Sub = 'Makes a backup, then removes the app.'; R1 = 'Changes the site' }
+  $canUn = (@($script:app.Uninstall).Count -gt 0) -or ((Test-Deploy) -and -not $script:spEnabled)
+  $un = $(if ($canUn) {
+      $unSub = $(if ($script:spEnabled -and $script:app.Restore) { 'Makes a backup, then removes the app.' } else { 'Removes this app from this computer.' })
+      $unR1 = $(if ($script:spEnabled -and $script:app.Restore) { 'Changes the site' } else { 'Removes local files' })
+      @{ Index = 20; Name = 'Uninstall'; Ver = ''; Danger = $true; Sub = $unSub; R1 = $unR1 }
     } else {
       @{ Off = $true; Soon = $true; Index = 20; Name = 'Uninstall'; Ver = ''; Sub = 'This app has no Uninstall steps.'; R1 = 'Not set up' }
     })

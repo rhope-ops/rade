@@ -742,6 +742,13 @@ $ui.VUninstall = {
   Takes no parameter.
   #>
   if ($ui.Busy) { return }
+  $spMode = [bool]($script:spEnabled -and $script:app.Restore)
+  if (-not $spMode) {
+    $ui.UninstallSite = ''
+    $ui.UninstallKeep = $false
+    & $ui.VUninstallConfirm
+    return
+  }
   $siteCheck = Test-UninstallSite (Get-BasePath)
   # The mark card goes on to this card, and its Back returns to the Maintenance card.
   if ($siteCheck.NeedMark) { $ui.MarkNext = $ui.VUninstall; $ui.MarkBack = $ui.ToolsBack; & $ui.VRestoreMark; return }
@@ -759,22 +766,32 @@ $ui.VUninstallConfirm = {
   .DESCRIPTION
   The card names the test site, the backup, the app's Uninstall steps (a hand step says so), what goes to the Recycle
   Bin after them and the Backups choice of the card before ($ui.UninstallKeep; engine-v48); the person types the app
-  name, then "Uninstall" (dark red: the one destructive action) runs it. Back goes to the Backups card. Takes no parameter.
+  name, then "Uninstall" (dark red: the one destructive action) runs it. Back goes to the Backups card (or Maintenance for local-only). Takes no parameter.
   #>
   if ($ui.Busy) { return }
+  $spMode = [bool]($script:spEnabled -and $script:app.Restore)
   $all = @($script:app.Uninstall); $n = @($script:app.Backup).Count
   $rows = @(for ($i = 0; $i -lt $all.Count; $i++) { $st = $steps[[int]$all[$i]]
       ([string]($i + 1) + '. ' + (Get-StepTitle $st) + $(if ($st.Kind -eq 'guide') { ' (you do this step)' } else { '' })) })
-  $what = 'RADE first backs up ' + $n + ' list(s). Then it runs ' + $(if ($all.Count -eq 1) { 'this step' } else { 'these ' + $all.Count + ' steps' }) + ' of ' + $script:app.Name + '.'
-  $what += ' They remove what the install made on the site.'
-  # engine-v48 (DECISIONS 2026-11-26): after the steps, the clean-up (Invoke-Uninstall, part 17); the last app's also takes RADE's shared files.
-  $clean = $(if ($ui.UninstallKeep) { 'After the steps, RADE moves the app files, the runner copy, the shortcut and the install record to the Recycle Bin. Your choice: keep the Backups folder.' }
-    else { 'After the steps, RADE moves the app folder, the runner copy, the shortcut and the install record to the Recycle Bin. Your choice: remove the Backups folder too.' })
+  if ($spMode) {
+    $what = 'RADE first backs up ' + $n + ' list(s). Then it runs ' + $(if ($all.Count -eq 1) { 'this step' } else { 'these ' + $all.Count + ' steps' }) + ' of ' + $script:app.Name + '.'
+    $what += ' They remove what the install made on the site.'
+    $clean = $(if ($ui.UninstallKeep) { 'After the steps, RADE moves the app files, the runner copy, the shortcut and the install record to the Recycle Bin. Your choice: keep the Backups folder.' }
+      else { 'After the steps, RADE moves the app folder, the runner copy, the shortcut and the install record to the Recycle Bin. Your choice: remove the Backups folder too.' })
+  } else {
+    $what = $(if ($all.Count -gt 0) {
+        'RADE runs ' + $(if ($all.Count -eq 1) { 'this step' } else { 'these ' + $all.Count + ' steps' }) + ' of ' + $script:app.Name + '.'
+      } else { 'RADE removes the local files of ' + $script:app.Name + '.' })
+    $clean = 'RADE moves the app folder, the runner copy, the shortcut and the install record to the Recycle Bin.'
+  }
   if (-not @(Get-OtherRecordKey (Get-InstalledKey $script:app)).Count) { $clean += ' No other app has an install record on this computer, so RADE\Config and RADE\runners go to the Recycle Bin too.' }
-  & $ui.SetCard @{ View = 'unconfirm'; Light = 'you'; Kicker = [string]$ui.Kick.Text; Sentence = ('Uninstall ' + $script:app.Name + ' from the test site?')
-    P = @(('Test site: ' + $ui.UninstallSite), $what, $clean); Lines = $rows
+  $pList = $(if ($spMode) { @(('Test site: ' + $ui.UninstallSite), $what, $clean) } else { @($what, $clean) })
+  $sent = $(if ($spMode) { 'Uninstall ' + $script:app.Name + ' from the test site?' } else { 'Uninstall ' + $script:app.Name + ' from this computer?' })
+  $backAct = $(if ($spMode) { { & $ui.VUninstall } } else { { & $ui.VMaint $ui.MaintInst } })
+  & $ui.SetCard @{ View = 'unconfirm'; Light = 'you'; Kicker = [string]$ui.Kick.Text; Sentence = $sent
+    P = $pList; Lines = $rows
     Field = @{ Label = ('Type ' + $script:app.Name + ' to confirm'); Text = ''; Name = 'The app name, to confirm Uninstall' }; Focus = 'field'
-    Buttons = @(@{ Text = 'Uninstall'; Kind = 'danger'; Act = { & $ui.UninstallGo } }); Back = { & $ui.VUninstall } } }
+    Buttons = @(@{ Text = 'Uninstall'; Kind = 'danger'; Act = { & $ui.UninstallGo } }); Back = $backAct } }
 
 $ui.UninstallGo = {
   <#
@@ -786,10 +803,11 @@ $ui.UninstallGo = {
   #>
   if ($ui.Busy) { return }
   if ($ui.Field.Text.Trim() -cne [string]$script:app.Name) { & $ui.Say1 ('Type the app name as shown: ' + $script:app.Name); return }
-  $siteLine = 'Test site: ' + $ui.UninstallSite
+  $spMode = [bool]($script:spEnabled -and $script:app.Restore)
+  $siteLine = $(if ($spMode) { 'Test site: ' + $ui.UninstallSite } else { 'Local uninstall (no SharePoint site).' })
   # The run card with one sentence: what Uninstall does now. Takes the sentence.
   $card = { param($Text) & $ui.SetCard @{ View = 'toolrun'; Kicker = [string]$ui.Kick.Text; Sentence = $Text; P = @($siteLine, 'Do not close RADE. ' + $ui.SignInHint) } }
-  & $card 'Uninstall is saving a backup.'
+  & $card $(if ($spMode) { 'Uninstall is saving a backup.' } else { 'Uninstall is removing local files.' })
   $ui.Busy = $true; [System.Windows.Forms.Application]::DoEvents(); $res = $null
   # Before each step: the run card names it. Takes the step, its number and the count.
   $onStep = { param($St, $I, $N) & $card ('Uninstall step ' + $I + ' of ' + $N + ': ' + (Get-StepTitle $St)); [System.Windows.Forms.Application]::DoEvents() }

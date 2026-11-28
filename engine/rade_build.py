@@ -38,6 +38,8 @@ WINDOW_PARTS = [
     'window/ui-theme.ps1', 'window/ui-shell.ps1', 'window/ui-cards.ps1', 'window/ui-runner.ps1',
 ]
 WINDOW_SLOT = '    # @@WINDOW@@\n'
+SP_PARTS = {'14-sp-restore.ps1', '16-site-scripts.ps1'}
+SP_CHECKS = {'pnp', 'net-site', 'site-rights'}
 
 HASH_LINE = '# @@BUNDLE-HASH %s @@\n'
 GUARD_START = (
@@ -141,8 +143,11 @@ def file_sha(rel):
     return hashlib.sha256((ENGINE_ROOT / rel).read_bytes()).hexdigest()[:12]
 
 
-def engine_text():
+def engine_text(include_sp=True):
     """Join the engine's PowerShell parts in run order, placing WINDOW_PARTS inside 10-window.ps1.
+
+    Args:
+        include_sp: when False, omit SharePoint-only parts (14-sp-restore.ps1, 16-site-scripts.ps1).
 
     Returns:
         Combined PowerShell engine script string starting with a newline.
@@ -157,9 +162,62 @@ def engine_text():
     def banner(rel):
         """Return the banner comment for one engine part."""
         return '# ==== Engine part: engine/ps/%s (sha256 %s)\n' % (rel, file_sha('engine/ps/' + rel))
+    parts = ENGINE_PARTS if include_sp else [p for p in ENGINE_PARTS if p not in SP_PARTS]
     window = ''.join(indent(banner(w) + read(w), '    ') for w in WINDOW_PARTS)
-    text = ''.join(banner(p) + read(p).replace(WINDOW_SLOT, window) for p in ENGINE_PARTS)
+    text = ''.join(banner(p) + read(p).replace(WINDOW_SLOT, window) for p in parts)
     return '\n' + text
+
+
+def app_capabilities(app=None):
+    """Return normalized capability flags and settings for `app` (default APP).
+
+    Args:
+        app: optional application manifest dict (defaults to global APP).
+
+    Returns:
+        Dict with sharepoint, sitePrefix, niprLabel, round, and aumidPrefix.
+    """
+    a = app if app is not None else (APP or {})
+    caps = a.get('capabilities') or {}
+    sp = caps.get('sharepoint')
+    if isinstance(sp, dict):
+        sp_flag = sp.get('enabled')
+        site_prefix = sp.get('sitePrefix', 'https://usaf.dps.mil/sites/')
+        nipr_label = sp.get('niprLabel', '.area52.')
+    else:
+        sp_flag = sp
+        site_prefix = 'https://usaf.dps.mil/sites/'
+        nipr_label = '.area52.'
+    return {
+        'sharepoint': sp_flag,
+        'sitePrefix': site_prefix,
+        'niprLabel': nipr_label,
+        'round': caps.get('round', True),
+        'aumidPrefix': caps.get('aumidPrefix', ''),
+    }
+
+
+def sp_enabled_for_bundle(b, app=None):
+    """Return True when SharePoint parts/checks are enabled for bundle `b` (or specific `app`).
+
+    Args:
+        b: bundle dict from manifest.
+        app: optional app entry dict from `b['apps']`.
+
+    Returns:
+        True when SharePoint parts/checks are enabled, else False.
+    """
+    if app is None and b.get('apps'):
+        return any(sp_enabled_for_bundle(b, a) for a in b['apps'])
+    src = app if (app is not None and 'capabilities' in app) else (b if 'capabilities' in b else (APP or {}))
+    caps = app_capabilities(src)
+    if caps['sharepoint'] is not None:
+        return bool(caps['sharepoint'])
+    if 'capabilities' not in src:
+        return True
+    step_names = set(app.get('steps', [])) if app is not None else None
+    steps = [s for s in b.get('steps', []) if step_names is None or s['name'] in step_names]
+    return any(n in SP_CHECKS for s in steps for n in s.get('needs', []))
 
 
 ENGINE = engine_text()
@@ -286,7 +344,7 @@ def site_values():
     assert re.fullmatch(r'[A-Za-z0-9._-]+/[A-Za-z0-9._-]+', repo), 'apps.json repo must be owner/name'
     assert re.fullmatch(r'https://[A-Za-z0-9.-]+(/[A-Za-z0-9._~/-]*)?', page), 'apps.json page must be an https address'
     assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 ._-]{0,59}', help_name), 'apps.json help must be a plain channel name'
-    return {'@@RADE_REPO@@': repo, '@@RADE_PAGE@@': page, '@@HELP@@': help_name}
+    return {'@@RADE_REPO@@': repo, '@@HELP@@': help_name}
 
 
 def logo_path():
@@ -411,7 +469,7 @@ def uninstall_part(a, b):
     assert len(set(un)) == len(un) and all(n in names for n in un), 'app %r: uninstall: unique names of steps of this bundle' % a['name']
     both = sorted(set(un) & set(a['steps']))
     assert not both, 'app %r: uninstall: a step is an install step too (%s); give Uninstall its own steps' % (a['name'], ', '.join(both))
-    assert a.get('mode') == 'deploy' and a.get('restore'), (
+    assert a.get('mode') == 'deploy' and (a.get('restore') or not sp_enabled_for_bundle(b, a)), (
         'app %r: uninstall needs mode deploy and "restore" (its test sites; Uninstall backs up first)' % a['name']
     )
     for n in un:
@@ -718,8 +776,11 @@ def help_rules_line():
     return '$appHelpRules = @(%s)' % ', '.join(items)
 
 
-def engine_for_app():
+def engine_for_app(include_sp=True):
     """Substitute window.json, apps.json, and application placeholders into ENGINE.
+
+    Args:
+        include_sp: when False, omit SharePoint-only engine parts.
 
     Returns:
         Parameterized PowerShell engine script string for the current APP.
@@ -727,12 +788,19 @@ def engine_for_app():
     ui_file = ENGINE_ROOT / 'engine/ps/window/ui-theme.ps1'
     rade_tokens.check_tokens(ui_file.read_text(encoding='utf-8'))
     in_ps = {k: v for k, v in site_values().items() if k != '@@RADE_REPO@@'}
-    engine = ENGINE
+    caps = app_capabilities()
+    engine = ENGINE if include_sp else engine_text(include_sp=False)
     for src, values in (('engine/window.json', window_values()), ('apps.json', in_ps)):
         for k, v in values.items():
             if engine.count(k) != 1:
                 raise SystemExit('the engine must hold %s exactly once (%s)' % (k, src))
             engine = engine.replace(k, v)
+    engine = (
+        engine
+        .replace('@@SP_ENABLED@@', 'true' if include_sp else 'false')
+        .replace("'@@NIPR_LABEL@@'", q(caps['niprLabel']))
+        .replace("'@@SITE_PREFIX@@'", q(caps['sitePrefix']))
+    )
     return engine.replace('@@HOME@@', APP['home']).replace('@@PREFIX@@', APP['prefix']).replace('@@APP@@', APP['folder'])
 
 
@@ -786,7 +854,7 @@ def bundle_body(b):
             '$appLogoDarkPng = ' + wrap_b64(app_dark),
             help_rules_line(),
             '$ownPatterns = @(' + ', '.join(q(p) for p in APP['own']) + ')',
-            '$round = %s' % q(b['round']), '$appFolder = %s' % q(APP['folder']),
+            '$round = %s' % q(b.get('round', 'R00')), '$appFolder = %s' % q(APP['folder']),
             '$appDisplay = %s' % q(APP.get('displayName', '')),
             name_spot(APP),
             "$usersRoot = $(if ($env:USERPROFILE) { Split-Path -Parent $env:USERPROFILE } else { Join-Path $env:SystemDrive 'Users' })",
@@ -798,7 +866,7 @@ def bundle_body(b):
         ('Applications', ['$known = @(%s)' % ', '.join(q(k) for k in known), '$apps = @()'] + app_lines(b)),
     ]
     text = ''.join('# ==== Part %d of %d: %s\n%s\n' % (i, len(parts) + 1, title, '\n'.join(lines)) for i, (title, lines) in enumerate(parts, 1))
-    return text + '# ==== Part %d of %d: the RADE engine (engine/ps, in run order)' % (len(parts) + 1, len(parts) + 1) + engine_for_app()
+    return text + '# ==== Part %d of %d: the RADE engine (engine/ps, in run order)' % (len(parts) + 1, len(parts) + 1) + engine_for_app(include_sp=sp_enabled_for_bundle(b))
 
 
 def contents(head, body):
@@ -852,7 +920,7 @@ def build(b):
         '  To read it: the Contents list below gives the line of each part and file; each part starts with a "# ====" line.\n'
         '#>\n%s$buildId = \'%s\'\n$engineRelease = %d\n'
         % (MANIFEST, run_steps(), b['title'], site_values()['@@RADE_REPO@@'], file_sha('engine/rade_build.py'),
-           MANIFEST, part_lines(), APP['folder'], b['round'], sends, GUARD_START, build_id, ENGINE_RELEASE)
+           MANIFEST, part_lines(), APP['folder'], b.get('round', 'R00'), sends, GUARD_START, build_id, ENGINE_RELEASE)
     )
     return add_line(head + contents(head, body) + body.rstrip('\n') + '\n' + GUARD_END)
 
